@@ -557,13 +557,19 @@
     // Auto-start audio on first user interaction
     function autoStartAudio() {
       if (!isPlaying) {
-        createAudio();
+        try {
+          createAudio();
+        } catch (e) {
+          console.log('Audio autostart failed:', e);
+        }
       }
-      document.removeEventListener('click', autoStartAudio);
-      document.removeEventListener('keydown', autoStartAudio);
+      document.removeEventListener('click', autoStartAudio, true);
+      document.removeEventListener('keydown', autoStartAudio, true);
+      document.removeEventListener('touchstart', autoStartAudio, true);
     }
-    document.addEventListener('click', autoStartAudio);
-    document.addEventListener('keydown', autoStartAudio);
+    document.addEventListener('click', autoStartAudio, true);
+    document.addEventListener('keydown', autoStartAudio, true);
+    document.addEventListener('touchstart', autoStartAudio, true);
 
     // ============ FAST BAT FLOCKS WITH MOTION BLUR ============
     const batsCanvas = document.getElementById('bats-canvas');
@@ -577,7 +583,7 @@
     const batMotionMode = 'wave';
 
     // Swarm bat parameters (locked in, except swarm spread)
-    const swarmCount = 150;
+    const swarmCount = 195;
     const swarmSpeedMult = 2.0;
     const swarmStartSize = 0.01;
     const swarmErratic = 2.0;
@@ -750,7 +756,7 @@
 
 
     // ============ SWARM BATS (FLY TOWARDS CAMERA) ============
-    const swarmBatSize = 1.5; // Locked size for swarm bats
+    const swarmBatSize = 1.0; // Locked size for swarm bats
 
     class SwarmBat {
       constructor(startX, startY) {
@@ -843,10 +849,37 @@
       }
     }
 
+    // Bat swarm sound
+    const batSwarmSound = new Audio('bat-flying-sounds.mp3');
+    let batSoundFadeInterval = null;
+
+    function playBatSound() {
+      // Clear any existing fade
+      if (batSoundFadeInterval) clearInterval(batSoundFadeInterval);
+
+      batSwarmSound.volume = 0.2;
+      batSwarmSound.currentTime = 0;
+      batSwarmSound.play();
+
+      // After 2 seconds, fade out quickly
+      setTimeout(() => {
+        batSoundFadeInterval = setInterval(() => {
+          if (batSwarmSound.volume > 0.05) {
+            batSwarmSound.volume -= 0.05;
+          } else {
+            batSwarmSound.pause();
+            batSwarmSound.volume = 0.2;
+            clearInterval(batSoundFadeInterval);
+          }
+        }, 30);
+      }, 2000);
+    }
+
     // Castle click handler
     document.querySelector('.castle-silhouette').addEventListener('click', (e) => {
       e.stopPropagation();
       triggerBatSwarm();
+      playBatSound();
     });
 
     // ============ BLOOD RAIN - MORE VISIBLE ============
