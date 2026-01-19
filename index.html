@@ -232,7 +232,8 @@
       width: 140%;
       height: 150%;
       z-index: 3;
-      pointer-events: none;
+      pointer-events: auto;
+      cursor: pointer;
       filter: blur(5px);
       opacity: 0.95;
     }
@@ -553,9 +554,35 @@
       else createAudio();
     });
 
+    // Auto-start audio on first user interaction
+    function autoStartAudio() {
+      if (!isPlaying) {
+        createAudio();
+      }
+      document.removeEventListener('click', autoStartAudio);
+      document.removeEventListener('keydown', autoStartAudio);
+    }
+    document.addEventListener('click', autoStartAudio);
+    document.addEventListener('keydown', autoStartAudio);
+
     // ============ FAST BAT FLOCKS WITH MOTION BLUR ============
     const batsCanvas = document.getElementById('bats-canvas');
     const batsCtx = batsCanvas.getContext('2d');
+
+    // Background bat parameters (locked in)
+    const batSpeedMult = 1.0;
+    const batFreqMult = 2.0;
+    const batSizeMult = 0.3;
+    const batDirectionMode = 'both';
+    const batMotionMode = 'wave';
+
+    // Swarm bat parameters (locked in, except swarm spread)
+    const swarmCount = 150;
+    const swarmSpeedMult = 2.0;
+    const swarmStartSize = 0.01;
+    const swarmErratic = 2.0;
+    const swarmScaleSpeed = 1.8;
+    const swarmSpread = 4.0; // Controls spawn area size
 
     function resizeBatsCanvas() {
       batsCanvas.width = window.innerWidth;
@@ -573,14 +600,14 @@
         this.active = false;
         this.x = -100;
         this.y = Math.random() * batsCanvas.height * 0.6 + batsCanvas.height * 0.1;
-        this.speed = 15 + Math.random() * 20;
+        this.baseSpeed = 15 + Math.random() * 20;
         this.bats = [];
-        const count = 5 + Math.floor(Math.random() * 12);
+        const count = 8 + Math.floor(Math.random() * 18);
         for (let i = 0; i < count; i++) {
           this.bats.push({
-            offsetX: Math.random() * 80 - 40,
-            offsetY: Math.random() * 60 - 30,
-            size: 8 + Math.random() * 15,
+            offsetX: Math.random() * 180 - 90,
+            offsetY: Math.random() * 140 - 70,
+            baseSize: 8 + Math.random() * 15,
             phase: Math.random() * Math.PI * 2
           });
         }
@@ -588,17 +615,49 @@
 
       activate() {
         this.active = true;
-        this.x = -100;
-        this.y = Math.random() * batsCanvas.height * 0.5 + batsCanvas.height * 0.15;
-        this.speed = 18 + Math.random() * 25;
-        // Direction: left to right or right to left
-        this.direction = Math.random() > 0.3 ? 1 : -1;
-        if (this.direction < 0) this.x = batsCanvas.width + 100;
+        this.startY = Math.random() * batsCanvas.height * 0.5 + batsCanvas.height * 0.15;
+        this.y = this.startY;
+        this.baseSpeed = 18 + Math.random() * 25;
+        this.travelDistance = 0;
+
+        // Direction based on mode
+        if (batDirectionMode === 'left') {
+          this.direction = 1;
+        } else if (batDirectionMode === 'right') {
+          this.direction = -1;
+        } else {
+          this.direction = Math.random() > 0.3 ? 1 : -1;
+        }
+
+        this.x = this.direction > 0 ? -100 : batsCanvas.width + 100;
       }
 
       update() {
         if (!this.active) return;
-        this.x += this.speed * this.direction;
+        const speed = this.baseSpeed * batSpeedMult;
+        this.x += speed * this.direction;
+        this.travelDistance += speed;
+
+        // Apply motion pattern to flock Y position
+        const progress = this.travelDistance / batsCanvas.width;
+        switch (batMotionMode) {
+          case 'straight':
+            this.y = this.startY;
+            break;
+          case 'wave':
+            this.y = this.startY + Math.sin(progress * Math.PI * 2) * 50;
+            break;
+          case 'dive':
+            this.y = this.startY + progress * 150;
+            break;
+          case 'rise':
+            this.y = this.startY - progress * 150;
+            break;
+          case 'erratic':
+            this.y = this.startY + Math.sin(progress * Math.PI * 8) * 80 * Math.sin(progress * Math.PI * 3);
+            break;
+        }
+
         if ((this.direction > 0 && this.x > batsCanvas.width + 150) ||
             (this.direction < 0 && this.x < -150)) {
           this.active = false;
@@ -607,38 +666,43 @@
 
       draw(time) {
         if (!this.active) return;
+        const speed = this.baseSpeed * batSpeedMult;
 
         this.bats.forEach(bat => {
+          const size = bat.baseSize * batSizeMult;
           const bx = this.x + bat.offsetX;
-          const by = this.y + bat.offsetY + Math.sin(time * 0.01 + bat.phase) * 8;
+          const waveOffset = batMotionMode === 'wave' ? 0 : Math.sin(time * 0.01 + bat.phase) * 8;
+          const by = this.y + bat.offsetY + waveOffset;
 
           // Motion blur trail
           batsCtx.globalAlpha = 0.15;
           for (let i = 5; i > 0; i--) {
-            const trailX = bx - (this.speed * this.direction * i * 0.3);
-            drawBat(trailX, by, bat.size * 0.8, time + bat.phase);
+            const trailX = bx - (speed * this.direction * i * 0.3);
+            drawBat(trailX, by, size * 0.8, time + bat.phase);
           }
 
           // Main bat
           batsCtx.globalAlpha = 0.9;
-          drawBat(bx, by, bat.size, time + bat.phase);
+          drawBat(bx, by, size, time + bat.phase);
         });
 
         batsCtx.globalAlpha = 1;
       }
     }
 
+    // Bat SVG path (140x51 original size)
+    const batPath = new Path2D('M140 2.77249C133.209 0.136343 124.446 -0.511253 116.045 0.372104C99.9632 2.06322 87.3983 9.25541 79.3326 20.3183C76.4554 17.3151 74.7157 13.5369 74.6695 9.42054C72.4969 11.5374 70.9252 14.0801 70.131 16.8694C69.3367 14.0791 67.7651 11.5374 65.5925 9.42054C65.5463 13.6085 63.7505 17.4523 60.7794 20.4804C52.7194 9.32604 40.1153 2.07117 23.9546 0.372104C15.5528 -0.511253 6.78953 0.135349 0 2.77249C15.4799 4.46061 19.7214 11.3444 17.1272 18.28C29.3644 15.6598 41.3788 24.3929 37.4566 34.5694C40.7092 33.4602 45.3808 33.1548 49.6545 33.5567C59.8745 34.5186 67.1585 41.9963 69.9937 51C69.9951 50.9901 69.9979 50.9781 70.0007 50.9662C70.0021 50.9781 70.0063 50.9901 70.0077 51C72.8443 41.9963 80.1269 34.5186 90.3483 33.5567C94.6206 33.1548 99.2922 33.4592 102.543 34.5694C98.6212 24.3938 110.637 15.6607 122.874 18.28C120.279 11.3444 124.521 4.46061 140 2.77249Z');
+    const batOrigWidth = 140;
+    const batOrigHeight = 51;
+
     function drawBat(x, y, size, time) {
-      const wingFlap = Math.sin(time * 0.05) * 0.4;
+      const scale = size / 20;
+      batsCtx.save();
+      batsCtx.translate(x - (batOrigWidth * scale) / 2, y - (batOrigHeight * scale) / 2);
+      batsCtx.scale(scale, scale);
       batsCtx.fillStyle = '#000';
-      batsCtx.beginPath();
-      // Simple bat shape
-      batsCtx.moveTo(x, y);
-      batsCtx.quadraticCurveTo(x - size * 0.4, y - size * (0.3 + wingFlap), x - size, y + size * 0.1);
-      batsCtx.quadraticCurveTo(x - size * 0.5, y + size * 0.2, x, y + size * 0.3);
-      batsCtx.quadraticCurveTo(x + size * 0.5, y + size * 0.2, x + size, y + size * 0.1);
-      batsCtx.quadraticCurveTo(x + size * 0.4, y - size * (0.3 + wingFlap), x, y);
-      batsCtx.fill();
+      batsCtx.fill(batPath);
+      batsCtx.restore();
     }
 
     const flocks = [];
@@ -647,26 +711,143 @@
     }
 
     // Spawn flocks intermittently
+    let spawnTimeout;
     function maybeSpawnFlock() {
       const inactiveFlock = flocks.find(f => !f.active);
       if (inactiveFlock && Math.random() > 0.7) {
         inactiveFlock.activate();
       }
-      setTimeout(maybeSpawnFlock, 2000 + Math.random() * 4000);
+      const baseDelay = 2000 + Math.random() * 4000;
+      spawnTimeout = setTimeout(maybeSpawnFlock, baseDelay / batFreqMult);
     }
     setTimeout(maybeSpawnFlock, 1000);
 
     let batTime = 0;
+    const swarmBats = [];
+
     function animateBats() {
       batsCtx.clearRect(0, 0, batsCanvas.width, batsCanvas.height);
       batTime++;
+
+      // Regular flocks
       flocks.forEach(flock => {
         flock.update();
         flock.draw(batTime);
       });
+
+      // Swarm bats
+      for (let i = swarmBats.length - 1; i >= 0; i--) {
+        swarmBats[i].update();
+        swarmBats[i].draw();
+        if (!swarmBats[i].active) {
+          swarmBats.splice(i, 1);
+        }
+      }
+
       requestAnimationFrame(animateBats);
     }
     animateBats();
+
+
+    // ============ SWARM BATS (FLY TOWARDS CAMERA) ============
+    const swarmBatSize = 1.5; // Locked size for swarm bats
+
+    class SwarmBat {
+      constructor(startX, startY) {
+        this.x = startX;
+        this.y = startY;
+        // Random direction spreading outward, biased upward
+        const angle = -Math.PI / 2 + (Math.random() - 0.5) * Math.PI * 1.4;
+        const speed = (4 + Math.random() * 6) * swarmSpeedMult;
+        this.vx = Math.cos(angle) * speed;
+        this.vy = Math.sin(angle) * speed;
+        this.flightAngle = angle; // Store flight direction
+        this.scale = swarmStartSize;
+        this.scaleSpeed = (0.012 + Math.random() * 0.018) * swarmScaleSpeed;
+        this.opacity = 1;
+        // Base rotation from flight angle - bat faces direction of travel
+        // Add small random wobble for natural look
+        this.baseRotation = angle + Math.PI / 2; // Rotate so bat "top" faces flight direction
+        this.wobble = 0;
+        this.wobbleAmount = (Math.random() - 0.5) * 0.3; // Small wobble variation
+        this.wobbleSpeed = (Math.random() - 0.5) * 0.1 * swarmErratic;
+        this.active = true;
+        this.flutter = Math.random() * Math.PI * 2;
+        this.flutterSpeed = 0.2 + Math.random() * 0.3;
+        // Erratic movement
+        this.erraticPhase = Math.random() * Math.PI * 2;
+        this.erraticFreq = 0.1 + Math.random() * 0.2;
+      }
+
+      update() {
+        if (!this.active) return;
+
+        // Erratic movement
+        const erraticX = Math.sin(this.erraticPhase) * swarmErratic * 2;
+        const erraticY = Math.cos(this.erraticPhase * 1.3) * swarmErratic * 1.5;
+        this.erraticPhase += this.erraticFreq;
+
+        // Move outward, accelerating as they get closer
+        this.x += this.vx * (1 + this.scale * 3) + erraticX;
+        this.y += this.vy * (1 + this.scale * 3) + erraticY;
+
+        // Scale up (flying towards camera)
+        this.scale += this.scaleSpeed * (1 + this.scale);
+
+        // Flutter effect
+        this.flutter += this.flutterSpeed;
+        // Small wobble in rotation, not full random spin
+        this.wobble += this.wobbleSpeed;
+
+        // Fade out as they get close
+        if (this.scale > 1.2) {
+          this.opacity -= 0.03;
+        }
+
+        // Deactivate when fully faded or off screen
+        if (this.opacity <= 0 || this.scale > 5) {
+          this.active = false;
+        }
+      }
+
+      draw() {
+        if (!this.active) return;
+
+        const size = 20 * this.scale * swarmBatSize;
+        const flutter = Math.sin(this.flutter) * 0.2;
+        const rotation = this.baseRotation + Math.sin(this.wobble) * this.wobbleAmount;
+
+        batsCtx.save();
+        batsCtx.globalAlpha = this.opacity * 0.9;
+        batsCtx.translate(this.x, this.y);
+        batsCtx.rotate(rotation);
+        batsCtx.scale(1 + flutter, 1 - flutter * 0.5);
+        batsCtx.translate(-(batOrigWidth * size / 20) / 2, -(batOrigHeight * size / 20) / 2);
+        batsCtx.scale(size / 20, size / 20);
+        batsCtx.fillStyle = '#000';
+        batsCtx.fill(batPath);
+        batsCtx.restore();
+      }
+    }
+
+    function triggerBatSwarm() {
+      const startX = batsCanvas.width / 2;
+      const startY = batsCanvas.height * 0.85;
+
+      for (let i = 0; i < swarmCount; i++) {
+        setTimeout(() => {
+          const offsetX = (Math.random() - 0.5) * 150 * swarmSpread;
+          const offsetY = Math.random() * 50 * swarmSpread;
+          swarmBats.push(new SwarmBat(startX + offsetX, startY + offsetY));
+        }, i * 8);
+      }
+    }
+
+    // Castle click handler
+    document.querySelector('.castle-silhouette').addEventListener('click', (e) => {
+      e.stopPropagation();
+      triggerBatSwarm();
+    });
 
     // ============ BLOOD RAIN - MORE VISIBLE ============
     const rainCanvas = document.getElementById('rain-canvas');
