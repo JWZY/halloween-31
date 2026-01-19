@@ -277,7 +277,6 @@
       color: #a51515;
     }
 
-
     /* Footer */
     footer {
       position: fixed;
@@ -317,9 +316,9 @@
           0    0    0    1  0
         " result="red"/>
         <feComponentTransfer in="red">
-          <feFuncR type="gamma" amplitude="0.95" exponent="1.0" offset="0"/>
-          <feFuncG type="gamma" amplitude="0.25" exponent="1.1" offset="0"/>
-          <feFuncB type="gamma" amplitude="0.20" exponent="1.2" offset="0"/>
+          <feFuncR id="moon-red" type="gamma" amplitude="0.95" exponent="1.0" offset="0"/>
+          <feFuncG id="moon-green" type="gamma" amplitude="0.25" exponent="1.1" offset="0"/>
+          <feFuncB id="moon-blue" type="gamma" amplitude="0.20" exponent="1.2" offset="0"/>
         </feComponentTransfer>
       </filter>
 
@@ -404,6 +403,38 @@
     // Apply ember glow style and moon softening on load
     document.querySelector('.lockup').classList.add('style-ember');
     document.getElementById('moon-soften').classList.add('active');
+
+    // ============ MOON PULSE ANIMATION ============
+    const moonRed = document.getElementById('moon-red');
+    const moonGreen = document.getElementById('moon-green');
+    const moonBlue = document.getElementById('moon-blue');
+    const baseRedAmplitude = 0.95;
+    const baseGreenAmplitude = 0.25;
+    const baseBlueAmplitude = 0.20;
+
+    const pulseSpeed = 2.5;
+    const pulseAmount = 10;
+    let pulseStartTime = performance.now();
+
+    // Ease-in-out easing function
+    function easeInOut(t) {
+      return (Math.sin(t * Math.PI * 2) * (1 - Math.cos(t * Math.PI * 2)) / 2) + (Math.sin(t * Math.PI * 2) * 0.5);
+    }
+
+    function animateMoonPulse(timestamp) {
+      const elapsed = (timestamp - pulseStartTime) / 1000;
+      const cycleProgress = (elapsed % pulseSpeed) / pulseSpeed;
+
+      const pulseValue = easeInOut(cycleProgress);
+      const intensityMultiplier = 1 + (pulseValue * pulseAmount / 100);
+
+      moonRed.setAttribute('amplitude', baseRedAmplitude * intensityMultiplier);
+      moonGreen.setAttribute('amplitude', baseGreenAmplitude * intensityMultiplier);
+      moonBlue.setAttribute('amplitude', baseBlueAmplitude * intensityMultiplier);
+
+      requestAnimationFrame(animateMoonPulse);
+    }
+    requestAnimationFrame(animateMoonPulse);
 
     // ============ AUDIO (BAKED SETTINGS) ============
     // Patter: 0.01, Rumble: 0.19, Wind: 0.09, Master: 0.50
