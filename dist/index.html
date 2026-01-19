@@ -1,0 +1,691 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>31 - Blood Moon</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Cinzel+Decorative:wght@900&family=Cinzel:wght@700&display=swap" rel="stylesheet">
+
+  <style>
+    .svg-filters {
+      position: absolute;
+      width: 0;
+      height: 0;
+    }
+
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: 'Cinzel', serif;
+      background: #000;
+      min-height: 100vh;
+      overflow: hidden;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    /* Blood rain canvas */
+    #rain-canvas {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      z-index: 10;
+      pointer-events: none;
+    }
+
+    /* Bat flocks canvas */
+    #bats-canvas {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      z-index: 8;
+      pointer-events: none;
+    }
+
+    /* Background */
+    .atmosphere {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: #000;
+      z-index: 0;
+    }
+
+    /* Main content */
+    .main {
+      position: relative;
+      z-index: 5;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
+
+    /* Moon container - larger for typography focus */
+    .blood-moon {
+      position: relative;
+      width: clamp(400px, 80vmin, 750px);
+      height: clamp(400px, 80vmin, 750px);
+    }
+
+    /* BACKGLOW - behind everything */
+    .moon-backglow {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      width: 170%;
+      height: 170%;
+      background: radial-gradient(circle, rgba(180, 40, 25, 0.6) 0%, rgba(140, 25, 15, 0.42) 25%, rgba(100, 15, 10, 0.21) 45%, transparent 70%);
+      filter: blur(80px);
+      z-index: 0;
+    }
+
+    /* Moon glow layers */
+    .moon-glow {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      border-radius: 50%;
+      animation: glowPulse 6s ease-in-out infinite;
+    }
+
+    .moon-glow-outer {
+      width: 160%;
+      height: 160%;
+      background: radial-gradient(circle, rgba(180, 45, 30, 0.5) 0%, rgba(120, 25, 18, 0.25) 45%, transparent 70%);
+      filter: blur(50px);
+    }
+
+    .moon-glow-mid {
+      width: 130%;
+      height: 130%;
+      background: radial-gradient(circle, rgba(200, 55, 40, 0.4) 0%, transparent 55%);
+      filter: blur(35px);
+      animation-delay: 1s;
+    }
+
+    @keyframes glowPulse {
+      0%, 100% { opacity: 0.7; transform: translate(-50%, -50%) scale(1); }
+      50% { opacity: 1; transform: translate(-50%, -50%) scale(1.03); }
+    }
+
+    /* Moon surface */
+    .moon-surface {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      width: 100%;
+      height: 100%;
+      border-radius: 50%;
+      overflow: hidden;
+      background: #1a0505;
+      z-index: 1;
+    }
+
+    .moon-image {
+      width: 115%;
+      height: 115%;
+      object-fit: cover;
+      border-radius: 50%;
+      position: absolute;
+      top: 49%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      filter: url(#blood-red);
+    }
+
+    /* Moon softening overlay - behind text */
+    .moon-soften {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      width: 70%;
+      height: 70%;
+      background: radial-gradient(circle, rgba(80, 20, 15, 0.4) 0%, transparent 70%);
+      filter: blur(40px);
+      z-index: 1;
+      opacity: 0;
+      transition: opacity 0.3s ease;
+    }
+
+    .moon-soften.active {
+      opacity: 1;
+    }
+
+    /* THE 31 - LARGE, HERO TYPOGRAPHY */
+    .lockup-container {
+      position: absolute;
+      top: 41%;
+      left: 47%;
+      transform: translate(-50%, -50%);
+      z-index: 2;
+    }
+
+    .lockup {
+      font-family: 'Cinzel Decorative', serif;
+      font-size: clamp(6rem, 55vmin, 50rem);
+      font-weight: 900;
+      line-height: 0.85;
+      letter-spacing: -0.05em;
+      color: #050000;
+      text-shadow:
+        0 0 40px rgba(0, 0, 0, 0.95),
+        0 0 80px rgba(0, 0, 0, 0.7),
+        3px 3px 6px rgba(0, 0, 0, 0.9),
+        -2px -2px 4px rgba(120, 30, 20, 0.2);
+      user-select: none;
+    }
+
+    /* Carved style */
+    .lockup.style-carved {
+      color: transparent;
+      background: linear-gradient(180deg, rgba(20, 0, 0, 0.95) 0%, rgba(60, 10, 10, 0.85) 50%, rgba(20, 0, 0, 0.95) 100%);
+      -webkit-background-clip: text;
+      background-clip: text;
+      filter: drop-shadow(0 2px 0 rgba(180, 50, 50, 0.4)) drop-shadow(0 -2px 4px rgba(0, 0, 0, 0.8));
+      text-shadow: none;
+    }
+
+    /* Ember glow style */
+    .lockup.style-ember {
+      color: #1a0505;
+      text-shadow:
+        0 0 2px rgba(0, 0, 0, 0.9),
+        0 0 20px rgba(139, 26, 26, 0.6),
+        0 0 40px rgba(139, 26, 26, 0.4),
+        0 0 60px rgba(100, 20, 20, 0.3),
+        0 0 100px rgba(80, 10, 10, 0.2);
+    }
+
+    /* Blood outline style */
+    .lockup.style-outline {
+      color: #080000;
+      -webkit-text-stroke: 3px rgba(120, 20, 20, 0.7);
+      paint-order: stroke fill;
+      text-shadow:
+        0 0 30px rgba(139, 26, 26, 0.5),
+        0 4px 8px rgba(0, 0, 0, 0.8);
+    }
+
+    /* Castle silhouette - soft edges, works with 31 */
+    .castle-silhouette {
+      position: absolute;
+      bottom: -30%;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 140%;
+      height: 150%;
+      z-index: 3;
+      pointer-events: none;
+      filter: blur(5px);
+      opacity: 0.95;
+    }
+
+    .castle-svg {
+      width: 100%;
+      height: 100%;
+      filter: url(#soften);
+    }
+
+    /* Vignette */
+    .vignette {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      pointer-events: none;
+      z-index: 15;
+      background: radial-gradient(ellipse at center, transparent 25%, rgba(0, 0, 0, 0.6) 60%, rgba(0, 0, 0, 0.95) 100%);
+    }
+
+    /* Sound Toggle */
+    .sound-toggle {
+      position: fixed;
+      bottom: 1rem;
+      right: 1rem;
+      z-index: 200;
+      background: rgba(15, 8, 8, 0.9);
+      border: 1px solid rgba(100, 30, 30, 0.4);
+      border-radius: 6px;
+      padding: 0.5rem 0.75rem;
+      font-family: system-ui, sans-serif;
+      font-size: 0.65rem;
+      color: #a55;
+      cursor: pointer;
+      backdrop-filter: blur(10px);
+      letter-spacing: 0.1em;
+    }
+
+    .sound-toggle:hover {
+      background: rgba(30, 15, 15, 0.95);
+      border-color: rgba(140, 40, 40, 0.5);
+    }
+
+
+    /* Footer */
+    footer {
+      position: fixed;
+      bottom: 1rem;
+      left: 50%;
+      transform: translateX(-50%);
+      z-index: 100;
+      font-family: 'Cinzel', serif;
+      font-size: 1rem;
+      letter-spacing: 0.3em;
+      color: #680b0b;
+      text-transform: uppercase;
+    }
+  </style>
+</head>
+<body>
+  <!-- SVG Filters -->
+  <svg class="svg-filters">
+    <defs>
+      <!-- Blood red filter with user's settings -->
+      <filter id="blood-red" color-interpolation-filters="sRGB">
+        <feColorMatrix type="saturate" values="0" result="gray"/>
+        <feColorMatrix type="matrix" in="gray" values="
+          0.60 0.15 0.15 0  0.00
+          0.12 0.08 0.04 0  0
+          0.02 0.02 0.04 0  0
+          0    0    0    1  0
+        " result="red"/>
+        <feComponentTransfer in="red">
+          <feFuncR type="gamma" amplitude="0.95" exponent="1.0" offset="0"/>
+          <feFuncG type="gamma" amplitude="0.25" exponent="1.1" offset="0"/>
+          <feFuncB type="gamma" amplitude="0.20" exponent="1.2" offset="0"/>
+        </feComponentTransfer>
+      </filter>
+
+      <!-- Soften filter for castle -->
+      <filter id="soften" x="-5%" y="-5%" width="110%" height="110%">
+        <feGaussianBlur in="SourceGraphic" stdDeviation="0.8" result="blur"/>
+        <feComposite in="SourceGraphic" in2="blur" operator="over"/>
+      </filter>
+    </defs>
+  </svg>
+
+  <!-- Atmosphere -->
+  <div class="atmosphere"></div>
+
+  <!-- Bat flocks canvas -->
+  <canvas id="bats-canvas"></canvas>
+
+  <!-- Rain canvas -->
+  <canvas id="rain-canvas"></canvas>
+
+  <!-- Vignette -->
+  <div class="vignette"></div>
+
+  <!-- Main content -->
+  <main class="main">
+    <div class="blood-moon">
+      <!-- Backglow -->
+      <div class="moon-backglow"></div>
+
+      <!-- Glow layers -->
+      <div class="moon-glow moon-glow-outer"></div>
+      <div class="moon-glow moon-glow-mid"></div>
+
+      <!-- Moon surface -->
+      <div class="moon-surface">
+        <img
+          class="moon-image"
+          src="https://upload.wikimedia.org/wikipedia/commons/e/e1/FullMoon2010.jpg"
+          alt="Blood Moon"
+          crossorigin="anonymous"
+        />
+      </div>
+
+      <!-- Moon softening overlay -->
+      <div class="moon-soften" id="moon-soften"></div>
+
+      <!-- THE 31 - HERO TYPOGRAPHY -->
+      <div class="lockup-container">
+        <div class="lockup">31</div>
+      </div>
+
+      <!-- Castle silhouette - soft edges -->
+      <div class="castle-silhouette">
+        <svg class="castle-svg" viewBox="0 0 400 220" preserveAspectRatio="xMidYMax meet">
+          <path fill="#000" d="
+            M200 25 L203 45 L207 25 L211 42 L215 22 L219 40 L223 28
+            L223 55 L230 55 L230 45 L234 35 L238 45 L238 55
+            L245 55 L245 48 L252 38 L256 35 L260 38 L260 55
+            L268 55 L268 65 L275 65 L275 55 L282 45 L286 42 L290 45 L290 65
+            L298 65 L298 78 L305 78 L305 68 L312 58 L316 55 L320 58 L320 82
+            L330 82 L330 100 L340 100 L340 120 L350 120 L350 220
+            L50 220
+            L50 120 L60 120 L60 100 L70 100 L70 82
+            L80 82 L80 58 L84 55 L88 58 L95 68 L95 78 L102 78 L102 65
+            L110 65 L110 45 L114 42 L118 45 L125 55 L125 65 L132 65
+            L140 55 L140 38 L144 35 L148 38 L155 48 L155 55
+            L162 55 L162 45 L166 35 L170 45 L170 55 L177 55
+            L177 28 L181 40 L185 22 L189 42 L193 25 L197 45 L200 25
+          "/>
+        </svg>
+      </div>
+    </div>
+  </main>
+
+  <!-- Sound Toggle -->
+  <button class="sound-toggle" id="sound-toggle">SOUND: OFF</button>
+
+  <footer>MM Concept Garage • Week 3 • Javan Wang</footer>
+
+  <script>
+    // ============ INITIALIZE ============
+    // Apply ember glow style and moon softening on load
+    document.querySelector('.lockup').classList.add('style-ember');
+    document.getElementById('moon-soften').classList.add('active');
+
+    // ============ AUDIO (BAKED SETTINGS) ============
+    // Patter: 0.01, Rumble: 0.19, Wind: 0.09, Master: 0.50
+    let audioContext = null;
+    let isPlaying = false;
+    let audioSources = [];
+
+    const soundToggle = document.getElementById('sound-toggle');
+
+    function createAudio() {
+      audioContext = new (window.AudioContext || window.webkitAudioContext)();
+      const masterGain = audioContext.createGain();
+      masterGain.gain.value = 0.50;
+      masterGain.connect(audioContext.destination);
+
+      // Rain patter (high freq) - very subtle
+      const patterBuffer = audioContext.createBuffer(2, audioContext.sampleRate * 4, audioContext.sampleRate);
+      for (let ch = 0; ch < 2; ch++) {
+        const data = patterBuffer.getChannelData(ch);
+        for (let i = 0; i < data.length; i++) {
+          data[i] = (Math.random() * 2 - 1) * (0.6 + Math.random() * 0.4);
+        }
+      }
+      const patterSource = audioContext.createBufferSource();
+      patterSource.buffer = patterBuffer;
+      patterSource.loop = true;
+
+      const patterFilter = audioContext.createBiquadFilter();
+      patterFilter.type = 'highpass';
+      patterFilter.frequency.value = 6000;
+
+      const patterGain = audioContext.createGain();
+      patterGain.gain.value = 0.01;
+
+      patterSource.connect(patterFilter);
+      patterFilter.connect(patterGain);
+      patterGain.connect(masterGain);
+      patterSource.start();
+      audioSources.push(patterSource);
+
+      // Rain rumble (low freq)
+      const rumbleBuffer = audioContext.createBuffer(1, audioContext.sampleRate * 5, audioContext.sampleRate);
+      const rumbleData = rumbleBuffer.getChannelData(0);
+      for (let i = 0; i < rumbleData.length; i++) {
+        rumbleData[i] = Math.random() * 2 - 1;
+      }
+      const rumbleSource = audioContext.createBufferSource();
+      rumbleSource.buffer = rumbleBuffer;
+      rumbleSource.loop = true;
+
+      const rumbleFilter = audioContext.createBiquadFilter();
+      rumbleFilter.type = 'lowpass';
+      rumbleFilter.frequency.value = 250;
+
+      const rumbleGain = audioContext.createGain();
+      rumbleGain.gain.value = 0.19;
+
+      rumbleSource.connect(rumbleFilter);
+      rumbleFilter.connect(rumbleGain);
+      rumbleGain.connect(masterGain);
+      rumbleSource.start();
+      audioSources.push(rumbleSource);
+
+      // Wind
+      const windBuffer = audioContext.createBuffer(2, audioContext.sampleRate * 6, audioContext.sampleRate);
+      for (let ch = 0; ch < 2; ch++) {
+        const data = windBuffer.getChannelData(ch);
+        for (let i = 0; i < data.length; i++) {
+          data[i] = Math.random() * 2 - 1;
+        }
+      }
+      const windSource = audioContext.createBufferSource();
+      windSource.buffer = windBuffer;
+      windSource.loop = true;
+
+      const windFilter = audioContext.createBiquadFilter();
+      windFilter.type = 'bandpass';
+      windFilter.frequency.value = 400;
+      windFilter.Q.value = 1.5;
+
+      const lfo = audioContext.createOscillator();
+      const lfoGain = audioContext.createGain();
+      lfo.frequency.value = 0.1;
+      lfoGain.gain.value = 180;
+      lfo.connect(lfoGain);
+      lfoGain.connect(windFilter.frequency);
+      lfo.start();
+      audioSources.push(lfo);
+
+      const windGain = audioContext.createGain();
+      windGain.gain.value = 0.09;
+
+      windSource.connect(windFilter);
+      windFilter.connect(windGain);
+      windGain.connect(masterGain);
+      windSource.start();
+      audioSources.push(windSource);
+
+      isPlaying = true;
+      soundToggle.textContent = 'SOUND: ON';
+    }
+
+    function stopAudio() {
+      audioSources.forEach(s => { try { s.stop(); } catch(e) {} });
+      audioSources = [];
+      if (audioContext) {
+        audioContext.close();
+        audioContext = null;
+      }
+      isPlaying = false;
+      soundToggle.textContent = 'SOUND: OFF';
+    }
+
+    soundToggle.addEventListener('click', () => {
+      if (isPlaying) stopAudio();
+      else createAudio();
+    });
+
+    // ============ FAST BAT FLOCKS WITH MOTION BLUR ============
+    const batsCanvas = document.getElementById('bats-canvas');
+    const batsCtx = batsCanvas.getContext('2d');
+
+    function resizeBatsCanvas() {
+      batsCanvas.width = window.innerWidth;
+      batsCanvas.height = window.innerHeight;
+    }
+    resizeBatsCanvas();
+    window.addEventListener('resize', resizeBatsCanvas);
+
+    class BatFlock {
+      constructor() {
+        this.reset();
+      }
+
+      reset() {
+        this.active = false;
+        this.x = -100;
+        this.y = Math.random() * batsCanvas.height * 0.6 + batsCanvas.height * 0.1;
+        this.speed = 15 + Math.random() * 20;
+        this.bats = [];
+        const count = 5 + Math.floor(Math.random() * 12);
+        for (let i = 0; i < count; i++) {
+          this.bats.push({
+            offsetX: Math.random() * 80 - 40,
+            offsetY: Math.random() * 60 - 30,
+            size: 8 + Math.random() * 15,
+            phase: Math.random() * Math.PI * 2
+          });
+        }
+      }
+
+      activate() {
+        this.active = true;
+        this.x = -100;
+        this.y = Math.random() * batsCanvas.height * 0.5 + batsCanvas.height * 0.15;
+        this.speed = 18 + Math.random() * 25;
+        // Direction: left to right or right to left
+        this.direction = Math.random() > 0.3 ? 1 : -1;
+        if (this.direction < 0) this.x = batsCanvas.width + 100;
+      }
+
+      update() {
+        if (!this.active) return;
+        this.x += this.speed * this.direction;
+        if ((this.direction > 0 && this.x > batsCanvas.width + 150) ||
+            (this.direction < 0 && this.x < -150)) {
+          this.active = false;
+        }
+      }
+
+      draw(time) {
+        if (!this.active) return;
+
+        this.bats.forEach(bat => {
+          const bx = this.x + bat.offsetX;
+          const by = this.y + bat.offsetY + Math.sin(time * 0.01 + bat.phase) * 8;
+
+          // Motion blur trail
+          batsCtx.globalAlpha = 0.15;
+          for (let i = 5; i > 0; i--) {
+            const trailX = bx - (this.speed * this.direction * i * 0.3);
+            drawBat(trailX, by, bat.size * 0.8, time + bat.phase);
+          }
+
+          // Main bat
+          batsCtx.globalAlpha = 0.9;
+          drawBat(bx, by, bat.size, time + bat.phase);
+        });
+
+        batsCtx.globalAlpha = 1;
+      }
+    }
+
+    function drawBat(x, y, size, time) {
+      const wingFlap = Math.sin(time * 0.05) * 0.4;
+      batsCtx.fillStyle = '#000';
+      batsCtx.beginPath();
+      // Simple bat shape
+      batsCtx.moveTo(x, y);
+      batsCtx.quadraticCurveTo(x - size * 0.4, y - size * (0.3 + wingFlap), x - size, y + size * 0.1);
+      batsCtx.quadraticCurveTo(x - size * 0.5, y + size * 0.2, x, y + size * 0.3);
+      batsCtx.quadraticCurveTo(x + size * 0.5, y + size * 0.2, x + size, y + size * 0.1);
+      batsCtx.quadraticCurveTo(x + size * 0.4, y - size * (0.3 + wingFlap), x, y);
+      batsCtx.fill();
+    }
+
+    const flocks = [];
+    for (let i = 0; i < 4; i++) {
+      flocks.push(new BatFlock());
+    }
+
+    // Spawn flocks intermittently
+    function maybeSpawnFlock() {
+      const inactiveFlock = flocks.find(f => !f.active);
+      if (inactiveFlock && Math.random() > 0.7) {
+        inactiveFlock.activate();
+      }
+      setTimeout(maybeSpawnFlock, 2000 + Math.random() * 4000);
+    }
+    setTimeout(maybeSpawnFlock, 1000);
+
+    let batTime = 0;
+    function animateBats() {
+      batsCtx.clearRect(0, 0, batsCanvas.width, batsCanvas.height);
+      batTime++;
+      flocks.forEach(flock => {
+        flock.update();
+        flock.draw(batTime);
+      });
+      requestAnimationFrame(animateBats);
+    }
+    animateBats();
+
+    // ============ BLOOD RAIN - MORE VISIBLE ============
+    const rainCanvas = document.getElementById('rain-canvas');
+    const ctx = rainCanvas.getContext('2d');
+
+    function resizeCanvas() {
+      rainCanvas.width = window.innerWidth;
+      rainCanvas.height = window.innerHeight;
+    }
+    resizeCanvas();
+    window.addEventListener('resize', resizeCanvas);
+
+    class BloodDrop {
+      constructor() { this.reset(); }
+
+      reset() {
+        this.x = Math.random() * rainCanvas.width;
+        this.y = -30;
+        this.length = Math.random() * 40 + 30;
+        this.speed = Math.random() * 10 + 14;
+        this.width = Math.random() * 3 + 1.5;
+        this.opacity = Math.random() * 0.5 + 0.25;
+      }
+
+      update() {
+        this.y += this.speed;
+        if (this.y > rainCanvas.height) this.reset();
+      }
+
+      draw() {
+        const gradient = ctx.createLinearGradient(this.x, this.y, this.x, this.y + this.length);
+        gradient.addColorStop(0, `rgba(100, 10, 10, 0)`);
+        gradient.addColorStop(0.2, `rgba(140, 20, 20, ${this.opacity})`);
+        gradient.addColorStop(0.6, `rgba(100, 15, 15, ${this.opacity * 0.8})`);
+        gradient.addColorStop(1, `rgba(60, 5, 5, 0)`);
+
+        ctx.beginPath();
+        ctx.strokeStyle = gradient;
+        ctx.lineWidth = this.width;
+        ctx.lineCap = 'round';
+        ctx.moveTo(this.x, this.y);
+        ctx.lineTo(this.x, this.y + this.length);
+        ctx.stroke();
+      }
+    }
+
+    const drops = [];
+    for (let i = 0; i < 200; i++) {
+      const drop = new BloodDrop();
+      drop.y = Math.random() * rainCanvas.height;
+      drops.push(drop);
+    }
+
+    function animateRain() {
+      ctx.clearRect(0, 0, rainCanvas.width, rainCanvas.height);
+      drops.forEach(drop => { drop.update(); drop.draw(); });
+      requestAnimationFrame(animateRain);
+    }
+    animateRain();
+  </script>
+</body>
+</html>
